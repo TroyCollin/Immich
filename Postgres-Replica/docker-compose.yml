@@ -1,0 +1,28 @@
+services:
+  postgres-replica:
+    image: ghcr.io/immich-app/postgres:14-vectorchord0.4.3-pgvectors0.2.0@sha256:bcf63357191b76a916ae5eb93464d65c07511da41e3bf7a8416db519b40b1c23
+    container_name: immich_postgres_replica
+    ports:
+      - "5433:5432"
+    environment:
+      - POSTGRES_PASSWORD=lPKZlTXD6e1
+      - PGPASSWORD=lPKZlTXD6e1
+      - PGUSER=postgres
+    volumes:
+      - pg_replica_data:/var/lib/postgresql/data
+    entrypoint: [ "/bin/bash", "-c" ]
+    command: # This must be aligned exactly with image, environment, and volumes
+      - |
+        if [ -z "$$(ls -A /var/lib/postgresql/data)" ]; then
+          echo "Data directory is empty. Initializing base backup from primary..."
+          pg_basebackup -h 192.168.5.45 -D /var/lib/postgresql/data -U replicator -Fp -Xs -P -R
+          touch /var/lib/postgresql/data/standby.signal
+        fi
+
+        chown -R postgres:postgres /var/lib/postgresql/data
+        chmod 700 /var/lib/postgresql/data
+        exec gosu postgres postgres -c hot_standby=on
+
+volumes:
+  pg_replica_data:
+
